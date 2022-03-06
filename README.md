@@ -1,37 +1,23 @@
-## Welcome to GitHub Pages
+# Overview
 
-You can use the [editor on GitHub](https://github.com/CheeseTurtle/rrecurse/edit/pages/README.md) to maintain and preview the content for your website in Markdown files.
+`rrecurse` ("rainbow recurse") is an SWI-Prolog module(-in-progress) that provides a couple of easy-to-use "rainbow recurse call" meta-predicates, `rrcall/1` and `rrcall/2`. These provide developers with a simple yet robust way to add trace output to any recursive predicate. They can be used to call any goal that contains a recursive predicate. It works very similar to `call(...)` with the key difference being that the optional second argument is not appended to the goal arguments, but rather allows the user to specify the "head template" that should be matched as the recursive predicate to rainbow-ify. These predicates have the potential to be useful in many situations involving recursion in SWIPL code.
 
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
 
-### Markdown
+## FAQs
 
-Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
+1. **Who should use this module?** 
 
-```markdown
-Syntax highlighted code block
+   As it is not yet perfectly functional, I disrecommend using it unless you are either knowledgeable to understand how it works (or, rather, why it doesn't, lol), or are okay with sometimes inexplicable behavior.
 
-# Header 1
-## Header 2
-### Header 3
+3. **Is this module complete?** 
 
-- Bulleted
-- List
+    Sadly, no. There are a couple of oddities that need to be smoothed out, mostly relating to the module's reliance on attributed variable hooks to trigger the "`after_enter`" `print_call/4` call.
 
-1. Numbered
-2. List
+6. **What problems might the user face due to its imperfect status?**
 
-**Bold** and _Italic_ and `Code` text
+    The only real issue that I haven't managed to resolve yet is that sometimes the first-layer call prints "late". You can tell that it's late because of the indentation briefly jumping back several levels. It doesn't make the module completely useless but it's definiely not helpful.
 
-[Link](url) and ![Image](src)
-```
-
-For more details see [Basic writing and formatting syntax](https://docs.github.com/en/github/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax).
-
-### Jekyll Themes
-
-Your Pages site will use the layout and styles from the Jekyll theme you have selected in your [repository settings](https://github.com/CheeseTurtle/rrecurse/settings/pages). The name of this theme is saved in the Jekyll `_config.yml` configuration file.
-
-### Support or Contact
-
-Having trouble with Pages? Check out our [documentation](https://docs.github.com/categories/github-pages-basics/) or [contact support](https://support.github.com/contact) and we’ll help you sort it out.
+8. **Will more features be added in the future?**
+    
+    Yes! I have tons of ideas for additional customization capability, potentially by defining hooks. I'd also like to find a way to (optionally?) provide more visual feedback for the backtracking, most likely by making use of the `undo/1` built-in. But first, I really need to fix the issue I mentioned in the answer to Question 3.
+    
