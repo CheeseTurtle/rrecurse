@@ -25,6 +25,11 @@ backtracking.
 :- use_module(library(terms)).
 :- use_module(library(assoc), [empty_assoc/1, put_assoc/4, get_assoc/3]).
 :- use_module(library(ansi_term), [ansi_format/3]).
+:- use_module(library(intercept), [intercept/3, intercept/4, intercept_all/4,
+                                   nb_intercept_all/4, send_signal/1,
+                                   send_silent_signal/1]).
+% See also catch/4, reset/3, shift/1, shift_for_copy/1
+
 
 :- autoload(library(rbtrees),
 	    [ %rb_empty/1,
@@ -38,9 +43,11 @@ backtracking.
 
 :- module_transparent
         rrcall/1, rrcall/2, rrcall/3,
-        rrcall_setup/11, rrcall_cleanup/5,
-        create_rrcall_body/15,
-        create_rrcall_body_/14.
+        rrcall_setup/9, rrcall_cleanup/3,
+        create_rrcall_body/13,
+        create_rrcall_body_/12,
+        rr_intercept/6.%,
+        %print_call1/6.
 
 
 
@@ -80,11 +87,15 @@ rrcall(Goal) :-
         rrcall(Goal, Template, []).
 rrcall(Goal, Template) :-
         rrcall(Goal, Template, []).
-rrcall(Goal, Template, Binds) :-
+rrcall(Goal, Template0, Binds) :-
         must_be(callable, Goal),
-        must_be(callable, Template),
-        most_general_goal(Template,GTemplate),
+        (   is_predicate_indicator(Template0)
+        ->  PI0=Template0
+        ;   must_be(callable, Template0),
+            Template=Template0
+        ),
         pi_head(PI0,Template),
+        most_general_goal(Template,GTemplate),
         (
           predicate_property(GTemplate,visible)
         -> ( strip_module(Template,TModule0,THead),
@@ -101,60 +112,107 @@ rrcall(Goal, Template, Binds) :-
 
         ;  throw(error(existence_error(procedure,PI0), _))
         ),
+        context_module(CM),%rwrite('rrcall context module: '),rwriteln(M),
         !,
-        context_module(M),%rwrite('rrcall context module: '),rwriteln(M),
         setup_call_cleanup(
-            rrecurse:rrcall_setup(M,TModule:TName/TArity,PI0,Template,GTemplate,THead,GHead,Binds,CountName,ClauseHeadName,GHName),
-            Goal,
-            rrecurse:rrcall_cleanup(M,TModule:TName/TArity,CountName,ClauseHeadName,GHName)).
+            rrecurse:rrcall_setup(CM,TModule:TName/TArity,PI0,Template,GTemplate,THead,GHead,Binds,GlobalNames),
+            @(rrecurse:intercept(Goal,rr_intercept(N,Mode),
+                                 rrecurse:rr_intercept(
+                                              CM, TModule:TName/TArity,
+                                              PI0, Binds, GlobalNames),
+                                 [N,Mode]), CM),
+            rrecurse:rrcall_cleanup(CM,TModule:TName/TArity,GlobalNames)).
 
 
+
+rr_intercept(CM,Module:_Name/_Arity, _PITemplate,
+             _Binds, [_CountName,ClauseHeadName,_GHName,TrackerName],
+             [N,Mode]) :-
+        @((b_getval(TrackerName,TrackerAssoc0),
+        get_assoc(N,TrackerAssoc0,TrackerList-_StatusMarkers),
+        b_getval(ClauseHeadName,HeadAssoc),
+        get_assoc(N,HeadAssoc,CH-GH)), CM),
+        %unifiable(CH,GH,Substs),
+        (   CH=Module:CHNoModule,
+            nonvar(CHNoModule)
+        -> !
+        ;   CH=CHNoModule
+        ),
+        %term_variables(CHNoModule,Vars),
+        %copy_term_nat(Vars,CHNoModule,[],CH1),
+        @(rrecurse:print_call1(N,Mode,[], % TODO: BindCodes?
+                             CHNoModule,
+                             CH, GH),
+          CM),
+        (   InterceptType=before_fail
+        ->  maplist(=(y),TrackerList)
+        ->  nth0(I,[pre_call,after_enter,before_exit,post_call],InterceptType),
+            nth0(I,TrackerList,y)
+        ).
 
 
                  /*******************
                  * WRAPPER CREATION *
                  *******************/
 
-rrcall_global_names(PI, CountName,ClauseHeadName,GHName) :-
+rrcall_global_names(PI, [CountName,ClauseHeadName,GHName,TrackerName]) :-
         term_to_atom(PI,PIAtom),
         atom_concat(PIAtom,'__rr_count',CountName),
         atom_concat(PIAtom,'__rr_clause_head',ClauseHeadName),
-        atom_concat(PIAtom,'__rr_gen_head',GHName).
+        atom_concat(PIAtom,'__rr_gen_head',GHName),
+        atom_concat(PIAtom,'__rr_track_print',TrackerName).
 
-rrcall_setup(CM,PI,PIT,THT,GHT,THead,GHead,Binds,CountName,ClauseHeadName,GHName) :-
-        rrecurse:rrcall_global_names(PI,CountName,ClauseHeadName,GHName),
+rrcall_setup(CM,Mod:Name/Arity,PIT,THT,GHT,THead,GHead,Binds,[CountName,ClauseHeadName,GHName,TrackerName]) :-
+        %writeln(inside_setup),
+        rrecurse:rrcall_global_names(Mod:Name/Arity,[CountName,ClauseHeadName,GHName,TrackerName]),
+        %writeln(calling_wrap),
         %context_module(M),rwrite('rrcall_setup context module: '),rwriteln(M),
-        rrecurse:rrcall_wrap_predicate(CM,PI,PIT,THT,GHT,THead,GHead,CountName,ClauseHeadName,GHName,Binds),
+        rrecurse:rrcall_wrap_predicate(CM,Mod:Name/Arity,PIT,THT,GHT,THead,GHead,[CountName,ClauseHeadName,GHName,TrackerName],Binds),
         @((rrecurse:b_setval(CountName, -1),
            rrecurse:b_setval(GHName,GHead),
            empty_assoc(A),
-           rrecurse:b_setval(ClauseHeadName,A)
+           rrecurse:b_setval(ClauseHeadName,A),
+           length(Tracker,Arity),
+           maplist(=(true),Tracker),
+           TrackerVar = [y,y,y,y]-Tracker,
+           list_to_assoc([-1-TrackerVar],TrackerAssoc),
+           rrecurse:b_setval(TrackerName,TrackerAssoc)
           ),
           CM).
 
-rrcall_cleanup(CM,PI,CountName,ClauseHeadName,GHName) :-
+
+rrcall_cleanup(CM,PI,[CountName,ClauseHeadName,GHName,TrackerName]) :-
         PI = M:_,
         @(rrecurse:unwrap_predicate(PI,rrcall_wrapper),M),
         @((
-           rrecurse:nb_delete(CountName),
-           rrecurse:nb_delete(ClauseHeadName),
-            rrecurse:nb_delete(GHName)),
+            rrecurse:nb_delete(CountName),
+            rrecurse:nb_delete(ClauseHeadName),
+            rrecurse:nb_delete(GHName),
+            rrecurse:nb_delete(TrackerName)),
           CM).
 
-rrcall_wrap_predicate(CM,TModule:TName/TArity,PIT,THT,GHT,THead,GHead,CountName,ClauseHeadName,GHName,Binds) :-
+rrcall_wrap_predicate(CM,PI,PIT,THT,GHT,THead,GHead,GlobalNames,Binds) :-
+        %writeln(inside_wrap_pred),
+        PI=TModule:TName/TArity,
+        %writeln(inside_wrap_pred_u),
         @((rrecurse:create_rrcall_body(CM,TModule:TName/TArity,PIT,
                                        THT,GHT,THead,GHead,
                                        _AllHeads,Binds,
-                                       CountName,ClauseHeadName,GHName,
+                                       GlobalNames,
                                        Closure,Wrapped, Body),
            '$wrap_predicate'(GHT, rrcall_wrapper, Closure, Wrapped, Body)
           ),
           TModule).
 
-create_rrcall_body(CM,TModule:TName/TArity,PIT,_THT,GHT,_THead,TGen, _AllHeads, Binds,CountName,  ClauseHeadName,GHName,Closure, Wrapped, Body) :-
+create_rrcall_body(CM,TModule:TName/TArity,PIT,_THT,GHT,_THead,TGen, _AllHeads, Binds, GlobalNames, Closure, Wrapped, Body) :-
         callable_name_arguments(TGen,TName,GArguments),
-        create_rrcall_body_(CM,TModule:TName/TArity,PIT,GHT,TGen,GArguments,_ZippedHeadsAndArgs,Binds,Closure,Wrapped,CountName,ClauseHeadName,GHName,Body).
+        %GlobalNames=[_,_,_,TrackerName|_],
+        %length(Tracker,TArity),
+        %TrackerVar = _N/_P//Tracker,
+        %@(rrecurse:b_setval(TrackerName,TrackerVar),CM),
+        create_rrcall_body_(CM,TModule:TName/TArity,PIT,GHT,TGen,GArguments,_ZippedHeadsAndArgs,Binds,GlobalNames,Closure,Wrapped,Body).
 
+rr_undo(_,_) :- !.
 create_rrcall_body_(
     CM,
     M:TName/TArity,
@@ -164,40 +222,115 @@ create_rrcall_body_(
     _GenArguments,
     _ZippedHeadsAndArgs,
     Binds,
+    [CountName,ClauseHeadName,GHName,TrackerName],
     Closure,
     Wrapped,
-    CountName,
-    ClauseHeadName,
-    GHName,
     (
-          @((b_getval(CountName,N0),
+
+        @((
+           b_getval(CountName,N0),
+           b_getval(TrackerName,TrackerAssoc00),
+           get_assoc(N0,TrackerAssoc00,[EC,AE,BX,OC]-Tracker00),
+           b_getval(ClauseHeadName,ClauseHeadAssoc0),
+
+
+                     %format('TrackerAssoc00: ~w, ClauseHeadAssoc0: ~w~n',
+             %      [TrackerAssoc00,ClauseHeadAssoc0]),
+           (   AE==y
+           ->  %writeln(ae_is_y),
+                  TrackerAssoc0=TrackerAssoc00
+             ;   %writeln(ae_not_y),
+                  get_assoc(N0,ClauseHeadAssoc0,ClauseHead00-GHead00),
+                  %format('ClauseHead00-GHead00: ~q~n',[ClauseHead00-GHead00]),
+                  term_variables(ClauseHead00,AllVars),
+               copy_term_nat(AllVars,ClauseHead00,_,ClauseHead01),
+                 %!, % TODO: This cut???
+                 (   var(ClauseHead01)
+                     -> copy_term_nat(AllVars,GHead00,_,ClauseHead01),
+                        ClauseHeadNoModule=ClauseHead01
+                     ; once(( subsumes(M:ClauseHeadNoModule,ClauseHead01)
+                            ; subsumes(ClauseHeadNoModule,ClauseHead01))
+                     )
+                 ),
+                 rrecurse:rformat('Missed a print (~w)!~n', [N0] ),
+                 undo((
+                     rrecurse:rformat('Undoing, just before catch-up after_enter (checking ~w)~n', [N0]))),
+               @(rrecurse:print_call1(N0,after_enter,[],
+                                      ClauseHeadNoModule,
+                                      ClauseHead01, GHead00),
+                   CM),
+                 undo(rrecurse:rformat('Undoing, just after catch-up after_enter (~w)~n', [N0])),
+                 rrecurse:put_assoc(N0,TrackerAssoc00,[EC,y,BX,OC]-Tracker00,TrackerAssoc0)
+                 %,writeln(updated_trackerassoc)
+             ),
+           undo(rrecurse:rformat('Undoing, just after AE==y cond block (checking ~w)~n',[N0])),
              N1 is N0 + 1,
-             b_setval(CountName,N1),
-             b_getval(ClauseHeadName,ClauseHeadAssoc0),
-             put_assoc(N1,ClauseHeadAssoc0,ClauseHead,ClauseHeadAssoc1),
+             rrecurse:b_setval(CountName,N1),
+             rrecurse:put_assoc(N1,ClauseHeadAssoc0,_ClauseHeadVar0-GenHead,ClauseHeadAssoc1),
              b_setval(ClauseHeadName,ClauseHeadAssoc1),
              rrecurse:print_call(N0,pre_call,GHT,Binds),
-             rrecurse:put_head_variables_attributes(Binds,M:TName/TArity,PIT,GHT,Closure,N1,ClauseHeadName,GHName)),
+             rrecurse:put_assoc(N1,TrackerAssoc0,[_,_,_,_]-StatusMarkers,TrackerAssoc1),
+             b_setval( TrackerName, TrackerAssoc1 )
+
+             %writeln(putting_head_var_attrs),
+
+            %assoc_to_list(ClauseHeadAssoc1,List0),
+            %length(List0,Num),
+            %term_attvars(GenHead,AttVars),
+            %ansi_format([bg(red),hfg(white)],'ATTVARS (~w/~w): ~q~n',[N1,Num,AttVars])
+             %,writeln(put_head_var_attrs)
+          ),
             CM),
         %writeln('Put head variable attributes.'),
         %undo(rrecurse:rwriteln(N1,'~t<00')),rrecurse:rwriteln(N1,'>00'),
-        %format('== Clause ~w == ~n', [N1]),
-        (   @(Wrapped,CM)
-        *-> @(( once(( (ClauseHead = M:ClauseHead1, ground(ClauseHead))
-                     ;  ClauseHead = ClauseHead1
-                     )),
-                unifiable(ClauseHead1,GenHead,Binds0),
+        %rrecurse:rformat('== Clause ~w == ~n', [N1]),
+        undo(rrecurse:rformat('Undoing, just before wrapped cond. block (~w)~n', [N1])),
+        (   undo(rrecurse:rformat('Undoing, just before Wrapped (~w)~n',[N1])),
+            @(rrecurse:put_head_variables_attributes(Binds,M:TName/TArity,PIT,GHT,Closure,N1,[CountName,ClauseHeadName,GHName,TrackerName],StatusMarkers),CM),
+            @(Wrapped,CM),
+            undo((rrecurse:rformat('Undoing, just after Wrapped (~w)~n',[N1]),
+                  rrecurse:rr_undo(N1,back_up_back_into)))
+        -> @((
+                b_getval(ClauseHeadName,ClauseHeadAssoc2),
+                get_assoc(N1,ClauseHeadAssoc2,ClauseHeadVar-GenHead),
+                term_variables(GenHead,GenHeadVars),
+                %maplist([V]>>del_attr(V,rrecurse),GenHeadVars),
+               (   var(ClauseHeadVar)
+               -> copy_term_nat(GenHeadVars,GenHead,_,ClauseHead1)
+                  %,ClauseHeadVar=ClauseHead1
+               ; once(( subsumes(M:ClauseHead1,ClauseHeadVar)
+                      ; subsumes(ClauseHead1,ClauseHeadVar)
+                     )
+                 )
+               ),
+               %(   var(ClauseHeadVar)
+               % ->  subsumes(M:ClauseHead1,...)
+               %     once((subsumes(M:ClauseHead1,ClauseHeadVar)
+               %      ;  ClauseHeadVar = ClauseHead1
+                %     )),
+                rrecurse:rformat('ClauseHead1: ~q, GenHead: ~q~n', [ClauseHead1,GenHead]),
+                unifiable(ClauseHead1,GenHead,Binds0), % was ClauseHeadVar
+
                 rrecurse:rformat('Wrapper substitutions: ~q~n', [Binds0]),
-                rrecurse:rformat('ClauseHead: ~q, ClauseHead1: ~q, GenHead: ~q~n', [ClauseHead,ClauseHead1,GenHead]),
+                rrecurse:rformat('ClauseHeadVar: ~q, ClauseHead1: ~q, GenHead: ~q~n', [ClauseHeadVar,ClauseHead1,GenHead]),
                 maplist([X=Y,XCodes=YCodes]>>(
                             write_term_to_codes(X,XCodes,[quoted(true)]),
                             write_term_to_codes(Y,YCodes,[quoted(true)])
                         ),Binds0,Binds1),
-                rrecurse:print_call(N1,before_exit,ClauseHead,Binds,Binds1),
-                rrecurse:print_call(N0,post_call,GenHead,Binds)
+                    %writeln(printing_aftercalls),
+                    rrecurse:rformat('Binds1: ~W~n',[Binds1,[portray(true)]]),
+                    rrecurse:print_call(N1,before_exit,ClauseHead1,Binds,Binds1),% was ClauseHeadVar
+                    b_getval(TrackerName,TrackerAssoc2),
+                    get_assoc(N1,TrackerAssoc2,N1_Tracker-_N1_SMs),
+                    get_assoc(N0,TrackerAssoc2,N0_Tracker-_N0_SMs),
+
+                    N1_Tracker=[_,_,y,_],
+                rrecurse:print_call(N0,post_call,GenHead,Binds),
+                N0_Tracker=[_,_,_,y]
               ),
               CM)
-        ;   @((rrecurse:print_call(N0,before_fail,GenHead,Binds)),CM),
+        ;   %writeln(goal_failed),
+            @((rrecurse:print_call(N0,before_fail,GenHead,Binds)),CM),
             fail
         )
     )
@@ -272,7 +405,7 @@ prolog_parent_frame(N,F,PF) :-
                 *    ATTRIBUTED VARIABLES    *
                 *****************************/
 
-put_head_variables_attributes(Binds,TModule:TName/TArity,_PIT,GHT,Closure,N1,ClauseHeadName,GHName) :-
+put_head_variables_attributes(Binds,TModule:TName/TArity,_PIT,GHT,Closure,N1,GlobalNames,StatusMarkers) :-
         term_variables(GHT,Vars),
         length(Vars,NumVars),
         length(Indexes,NumVars),
@@ -287,103 +420,146 @@ put_head_variables_attributes(Binds,TModule:TName/TArity,_PIT,GHT,Closure,N1,Cla
                              TModule:TName/TArity,
                              Closure,
                              StatusMarkers,N1,
-                             ClauseHeadName,GHName),
+                             GlobalNames),
                 Indexes, Vars).
 
-put_head_variable_attribute(Binds,BindCodes,PI,Closure,StatusMarkers,N1,ClauseHeadName,GHName,N,HeadVar) :-
+put_head_variable_attribute(Binds,BindCodes,PI,Closure,StatusMarkers,N1,GlobalNames,N,HeadVar) :-
         (   ( member(Name=HV,Binds), HV==HeadVar )
-        -> put_attr(AttributedVar, rrecurse, rrcall_attr(ClauseHeadName,GHName,PI,Closure,N1,StatusMarkers,N,Name,BindCodes))
-        ;   put_attr(AttributedVar, rrecurse, rrcall_attr(ClauseHeadName,GHName,PI,Closure,N1,StatusMarkers,N, _,BindCodes))
+        -> put_attr(AttributedVar, rrecurse, rrcall_attr(GlobalNames,PI,Closure,N1,StatusMarkers,N,Name,BindCodes))
+        ;   put_attr(AttributedVar, rrecurse, rrcall_attr(GlobalNames,PI,Closure,N1,StatusMarkers,N, _,BindCodes))
         ),
         HeadVar = AttributedVar.
 
 head_variable(Var,AttrValue) :-
         var(AttrValue), !,
         get_attr(Var,rrecurse,AttrValue),
-        AttrValue==rrcall_attr(_,_,_,_,_,_,_,_,_).
+        AttrValue==rrcall_attr(_GNs,_PI,_C,_N1,_SMs,_N,_Name,_BCs).
 
-head_variable(Var,rrcall_attr(CHN,GHN,PI,C,N1,SMs,N,Name,BindCodes)) :-
-        put_attr(AttributedVar, rrecurse, rrcall_attr(CHN,GHN,PI,C,N1,SMs,N,Name,BindCodes)),
+head_variable(Var,rrcall_attr(GlobalNames,PI,C,N1,SMs,N,Name,BindCodes)) :-
+        put_attr(AttributedVar, rrecurse, rrcall_attr(GlobalNames,PI,C,N1,SMs,N,Name,BindCodes)),
         Var = AttributedVar.
 
 attribute_goals(Var) -->
         { get_attr(
               Var, rrecurse,
-              rrcall_attr(CHN,GHN,PI,C,N1,SMs,N,Name,BindCodes))
+              rrcall_attr(GlobalNames,PI,C,N1,SMs,N,Name,BindCodes))
         },
         [ head_variable(
               Var,
-              rrcall_attr(CHN,GHN,PI,C,N1,SMs,N,Name,BindCodes))
+              rrcall_attr(GlobalNames,PI,C,N1,SMs,N,Name,BindCodes))
         ].
 
-attr_unify_hook(AttrVal, Val2) :-
+attr_unify_hook(AttrVal, _Val2) :-
         AttrVal=rrcall_attr(
-                    ClauseHeadName,GHName,
+                    [_CountName,ClauseHeadName,_GHName,TrackerName],
                     M:Name/Arity,_Closure,
                     N1,StatusMarkers,
                     N,_VarName,
                     BindCodes),
+        %writeln(attr_unify_hook),
+        b_getval(TrackerName,TrackerAssoc0),
+        %format('Got TrackerAssoc0: ~q~n', [TrackerAssoc0]),
+        get_assoc(N1,TrackerAssoc0,TrackerVar0),
+        %format('Got TrackerVar0 (~w): ~q. (SMs: ~q)~n', [N1,TrackerVar0,StatusMarkers]),
+        TrackerVar0=[_,AE,_,_]-StatusMarkers,
         prolog_current_frame(F),
         %print_parent_frames(F),
-        (   find_pf(F,M,Name,Arity,PF), !
-            -> prolog_frame_attribute(PF,predicate_indicator,_PI),
-               %!writeln(got_pf),
-        (   prolog_frame_attribute(PF,clause,ClauseRef),
-            (clause(M:ClauseHead,_Body,ClauseRef)
-             ;  clause(ClauseHead,_Body,ClauseRef)
-            ),
+        ( AE==y
+        ->  %undo(nth1(N1,StatusMarkers,_)),
+            nth1(N1,StatusMarkers,true)
+        ;   find_pf(F,M,Name,Arity,PF), !
+        -> (   prolog_frame_attribute(PF,clause,ClauseRef),
+              (  clause(M:ClauseHead,_Body,ClauseRef)
+              ;  clause(ClauseHead,_Body,ClauseRef)
+              ),
             head_name_arity(ClauseHead,Name,Arity)
-        -> b_getval(ClauseHeadName,ClauseHeadAssoc),
-           %!write(found_clause),%write('. ClauseHead1: '), writeq(ClauseHead),nl,
-            ( get_assoc(N1,ClauseHeadAssoc,ClauseHeadVar)
-            ->  !
-            ; put_assoc(N1,ClauseHeadAssoc,ClauseHeadVar,ClauseHeadAssoc1),
-              b_setval(ClauseHeadName,ClauseHeadAssoc1)
-            ),
-            %write(got_chv),
-            term_variables(ClauseHead,AllVars),
-            %write('. ClauseHeadVar: '), writeq(ClauseHeadVar),nl,
-            copy_term_nat(AllVars,ClauseHead,_,ClauseHead1),
-            %write(copied_term),
-            %write('. ClauseHead1: '), writeq(ClauseHead1),nl,
-            ClauseHead1=ClauseHeadVar,
-            %writeln(unified_ch1_and_chv),
-            once(( (nonvar(ClauseHead1),ClauseHead1=M:ClauseHeadNoModule)
-                 ; ClauseHeadNoModule=ClauseHead1)
+            -> %format('PF ClauseHead: ~q~n', [ClauseHead]),
+               %b_getval(GHName,GHVar),%TODO!!
+                b_getval(ClauseHeadName,ClauseHeadAssoc0),
+                %writeln(got_ghvvar_and_clauseheadassoc),
+                (   get_assoc(N1,ClauseHeadAssoc0,Entry),
+                    Entry=ClauseHeadVar-GHVar
+                ->  true%writeln(unified_existing_entry),true%ClauseHeadAssoc1=ClauseHeadAssoc0
+                ;   %format('Cant unify ~q with entry ~q~n',[ClauseHeadVar-GHVar,Entry]),
+                    put_assoc(N1,ClauseHeadAssoc0,ClauseHeadVar-GHVar,ClauseHeadAssoc1),
+                    %format('Put new entry ~q @ ~q in ClauseHeadAssoc1~n',[ClauseHeadVar-GHVar,N1]),
+                    b_setval(ClauseHeadName,ClauseHeadAssoc1)
+                    %,writeln(updated_clauseheead_assoc)
                 ),
-            nth1(N,StatusMarkers,true),
+                      %(   get_assoc(N1,ClauseHeadAssoc0,ClauseHeadVar-GHVar0),
+                           %    GHVar0==GHVar
+                           %->  ClauseHeadAssoc0=ClauseHeadAssoc1
+                           %;   put_assoc(N1,ClauseHeadAssoc0,ClauseHeadVar-GHVar0,ClauseHeadAssoc1),
+                           %    b_setval(ClauseHeadName,ClauseHeadAssoc1)
+                %),
+                %!write(found_clause),%write('. ClauseHead1: '), writeq(ClauseHead),nl,
+                           %once(
+                          %    ( get_assoc(N1,ClauseHeadAssoc0,ClauseHeadVar)
+                              %    ; ( put_assoc(N1,ClauseHeadAssoc0,ClauseHeadVar,ClauseHeadAssoc1),
+                                 %        b_setval(ClauseHeadName,ClauseHeadAssoc1))
+                                %    )
+                %),
+                %writeln(got_chv),
+                term_variables(ClauseHead,AllVars),
+                %write('. ClauseHeadVar: '), writeq(ClauseHeadVar),nl,
+                copy_term_nat(AllVars,ClauseHead,_,ClauseHead1),
+                %write(copied_term),
+                %write('. ClauseHead1: '), writeq(ClauseHead1),nl,
+                ClauseHead1=ClauseHeadVar,
+                %writeln(unified_ch1_and_chv),
+                once(( (nonvar(ClauseHead1),ClauseHead1=M:ClauseHeadNoModule)
+                     ; ClauseHeadNoModule=ClauseHead1)
+                    ),
+                %writeln(got_ch_nomod),
+                nth1(N,StatusMarkers,true),
+                %writeln(updated_status_markers),
             (   maplist(==(true),StatusMarkers)
-            ->  b_getval(GHName,GHVar),%! all true
-                (   unifiable(ClauseHeadNoModule,GHVar,Substs)
-                ->  maplist([Codes1=Codes2,Atom1=Atom2]>>(atom_codes(Atom1,Codes1),atom_codes(Atom2,Codes2)),BindCodes,BindAtoms),%!writeln(can_unify),
-                    rrecurse:rformat('Hook substitutions: ~q, ~q~n',
-                                     [BindAtoms,Substs]),
-                    rrecurse:rformat(
-                                 'CHV: ~q, CH: ~q, CH1: ~q, GHVar: ~q~n',
-                                 [ClauseHeadVar,ClauseHead,
-                                  ClauseHead1,GHVar]),
-                    maplist([X=Y,XCodes=YCodes]>>(
-                                write_term_to_codes(X,XCodes,[quoted(true)]),
-                                write_term_to_codes(Y,YCodes,[quoted(true)])
-                            ),Substs,SubstCodes0)
-                ;   rrecurse:rformat(
-                             'Cannot unify ~q with ~q.~n',
-                             [ClauseHeadNoModule,GHVar]),
-                    SubstCodes0=[]%,writeln(cannot_unify)
-                ), % End of unifiable(...) condition block
-                append(BindCodes,SubstCodes0,SubstCodes),
-                print_call(N1,after_enter,ClauseHead1,[],SubstCodes)
+            ->  %writeln(all_true),%! all true
+                undo((rrecurse:rformat('Undoing print_call1(~w,after_enter,~q,~q,~q)~n',
+                            [N1,ClauseHeadNoModule,ClauseHead,GHVar]))),
+                rrecurse:print_call1(N1,after_enter,BindCodes,
+                                     ClauseHeadNoModule,
+                                     ClauseHead, GHVar),
+                TrackerVar0=[EC,_,BX,OC]-_,
+                TrackerVar1=[EC,y,BX,OC]-StatusMarkers,
+                put_assoc(N1,TrackerAssoc0,TrackerVar1,TrackerAssoc1),
+                b_setval(TrackerName,TrackerAssoc1)
+                %,writeln(updated_tracker_assoc)
             ;   true %!writeln(not_all_ready),
             )
         )
         %%%%%%%)% used to match the open paren before
         %%%%%%%%% b_getval(ClauseHeadName,ClauseHeadAssoc)
-        ; ( \+attvar(Val2)%!writeln(cant_find_parent)
-          -> put_attr(AttrVar,rrecurse,AttrVal), %!writeln(val2_not_attvar),
-             AttrVar=Val2 %!writeln(val2_is_attvar),
-          ;  true
-          )
-        ).
+        %; true
+        %( \+attvar(Val2)%!writeln(cant_find_parent)
+        %  -> put_attr(AttrVar,rrecurse,AttrVal), %!writeln(val2_not_attvar),
+        %     AttrVar=Val2 %!writeln(val2_is_attvar),
+        %  ;  true
+        %  )
+        )
+        ; true.
+
+print_call1(N1,Mode,BindCodes,ClauseHeadNoModule,ClauseHead1,GHVar) :-
+        (   unifiable(ClauseHeadNoModule,GHVar,Substs)
+        ->  maplist([Codes1=Codes2,Atom1=Atom2]>>(atom_codes(Atom1,Codes1),atom_codes(Atom2,Codes2)),BindCodes,BindAtoms),%!writeln(can_unify),
+            rrecurse:rformat('Hook substitutions: ~q, ~q~n',
+                             [BindAtoms,Substs]),
+            %rrecurse:rformat(
+            %             'CHV: ~q, CH: ~q, CH1: ~q, GHVar: ~q~n',
+            %             [ClauseHeadVar,ClauseHead,
+            %              ClauseHead1,GHVar]),
+            maplist([X=Y,XCodes=YCodes]>>(
+                        write_term_to_codes(X,XCodes,[quoted(true)]),
+                        write_term_to_codes(Y,YCodes,[quoted(true)])
+                    ),Substs,SubstCodes0)
+        ;   rrecurse:rformat(
+                         'Cannot unify ~q with ~q.~n',
+                         [ClauseHeadNoModule,GHVar]),
+            SubstCodes0=[]%,writeln(cannot_unify)
+        ), % End of unifiable(...) condition block
+        append(BindCodes,SubstCodes0,SubstCodes),
+        print_call(N1,Mode,ClauseHead1,[],SubstCodes).
+
 
                 /*****************************
                 *  PRINTING THE TRACE LINES  *
@@ -414,6 +590,17 @@ print_call(CountName,Mode,Functor,Binds) :-
         context_module(M),
         @(rrecurse:print_call(CountName,Mode,Functor,Binds,[]), M).
 print_call(CountName,Mode,Functor,Binds,Binds1) :-
+        (   Mode==before_exit
+        ->  rrecurse:rformat('print_call: ~q, ~q, ~q, ~W~n',
+                            [Mode,Functor,Binds,Binds1,[portray(true)]]),
+            rrecurse:rformat('Functor: ~q, ', [Functor]),
+            print_call_functor_fmt_args(Functor, PrintFmt, Args, Binds),
+            rrecurse:rformat('Functor: ~q, ', [Functor]),
+            format_to_codes(PrintFmt,Args,Codes),
+            rrecurse:rformat('Codes: ~W~n', [Codes, [portray(true)]]),
+            phrase(rrecurse:rr_replace(Binds1),Codes,Codes1)
+        ;   true
+        ),
         (   number(CountName)
         ->  N=CountName
         ;   b_getval(CountName,N)
@@ -425,13 +612,29 @@ print_call(CountName,Mode,Functor,Binds,Binds1) :-
         ),
         mytabc(4,TabDist1),
         print_call_mode_prefix(Mode,Prefix),
-        print_call_functor_fmt_args(Functor, PrintFmt, Args, Binds),
-        format_to_codes(PrintFmt,Args,Codes),
-        phrase(rrecurse:rr_replace(Binds1),Codes,Codes1),
+        (   Mode\==before_exit
+        ->  rrecurse:rformat('print_call: ~q, ~q, ~q, ~W~n',
+                            [Mode,Functor,Binds,Binds1,[portray(true)]]),
+            rrecurse:rformat('Functor: ~q, ', [Functor]),
+            print_call_functor_fmt_args(Functor, PrintFmt, Args, Binds),
+            rrecurse:rformat('Functor: ~q, ', [Functor]),
+            format_to_codes(PrintFmt,Args,Codes),
+            rrecurse:rformat('Codes: ~W~n', [Codes, [portray(true)]]),
+            phrase(rrecurse:rr_replace(Binds1),Codes,Codes1)
+        ;   true
+        ),
         !,
         atom_codes(Atom,Codes1),
         ansi_format(ColorFmt, Prefix, []),
-	ansi_format(ColorFmt,Atom,[]).
+	ansi_format(ColorFmt, Atom,[]),
+        nl.
+        %put(' '),
+        %get_time(TimeStamp),
+        %format_time(atom(TimeAtom),
+        %            '[%H:%M:%S:%3f]',
+        %           TimeStamp),
+        %writeln(TimeAtom).
+
 
 
 %! print_call_functor_fmt_args(+Functor, -Format, -Args, ++Binds) is det.
@@ -445,7 +648,8 @@ print_call(CountName,Mode,Functor,Binds,Binds1) :-
 
 print_call_functor_fmt_args(F, Form, [], Binds) :-
         (   \+callable(F) ; \+compound(F) ), !,
-        format(atom(Form), '~|~W.~n',
+        %writeq(F),nl,%writeq(Binds),nl,
+        format(atom(Form), '~|~W.',
                [F, [
                     ignore_ops,quoted,quote_non_ascii,
                     brace_terms(false),attributes(ignore),
@@ -458,7 +662,7 @@ print_call_functor_fmt_args(Func,Form,Args,Binds) :-
         length(AList,Arity),
         maplist(=('~t~4+~|~W'), AList),
         atomic_list_concat(AList,',',ArgsFormatAtom),
-        format(atom(Form), '~|~w( ~a ).~n', [Name,ArgsFormatAtom]), !.
+        format(atom(Form), '~|~w( ~a ).', [Name,ArgsFormatAtom]), !.
 
 print_call_functor_fmt_args_(_,[],[]) :- !.
 print_call_functor_fmt_args_(Binds, [A|Args0],
@@ -815,10 +1019,18 @@ callable_name_arity_arguments(Callable,Name,Arity,Args) :-
         callable_name_arity_arguments(Head,Name,Arity,Args).
 callable_name_arity_arguments(Callable, Name, Arity, Args) :-
         once((var(Callable) ; must_be(callable,Callable))),
-        (   (\+ ((\+atom(Callable), \+(Arity \= 0 ; Args \= []))))
-        ->  head_name_arity(Callable,Name,Arity),
-            compound_name_arguments(Callable,Name,Args)
-        ;   Arity=0, Args=[], Name=Callable
+        (    ( nonvar(Callable)
+             ->  \+atom(Callable)
+             ;   \+((Arity==0 ; Args==[]))
+               )
+        ->
+             length(Args,Arity),
+             (   Arity=0
+             ->  Callable=..[Name|Args]
+             ;   compound_name_arity(Callable,Name,Arity),
+                 compound_name_arguments(Callable,Name,Args)
+             )
+        ;   Name=Callable, Arity=0, Args=[]
         ).
 
 
@@ -835,6 +1047,11 @@ callable_name_arguments(Callable,Name,Arguments) :-
         Name=Callable,
         Arguments=[], !.
 callable_name_arguments(Callable,Name,Arguments) :-
+        (   nonvar(Callable)
+        ->  must_be(callable,Callable)
+        ;   must_be(atomic,Name),
+            must_be(nonvar,Name)
+        ),
         compound_name_arguments(Callable,Name,Arguments).
 
 
