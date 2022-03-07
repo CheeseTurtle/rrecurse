@@ -14,7 +14,7 @@
   ```
   ![image](https://user-images.githubusercontent.com/4154751/156992183-9adc5ef8-8e21-40b0-8379-680eb560925a.png)
 
-* Works with any[^1] predicate written in SWI-Prolog! (Foreign predicates not supported.) Using this module is both simple and convenient.
+* Works with any[^1] predicate written in SWI-Prolog, includig built-ins! (Foreign predicates not supported.) Using this module is both simple and convenient.
 ![image](https://user-images.githubusercontent.com/4154751/156995634-23deac98-7251-4672-a3b2-116ddff589b5.png)
 
 
