@@ -92,6 +92,7 @@
 * **`rrcall/1`:** `rrcall( Goal )`
 * **`rrcall/2`:** `rrcall( Goal, Template )`
 
+
 | Argument Name | Accepted Value Type | Description | Example(s) |
 | :-----------: | :------------------ | :---------- | :--------- |
 | `Goal`        | callable            | Any syntactically valid term you would pass to `call/1` | `pred(A1,A2)`, `(X>Y -> pred(A1,A2) ; pred(A3,A4))` |
