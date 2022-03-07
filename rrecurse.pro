@@ -76,7 +76,7 @@ backtracking.
 %     its arguments can be unified with those of Template.
 %   * Within the clauses of the predicate ``Name/Arity``, _all_ calls to
 %     ``Name/Arity`` (that is, _all_ recursive calls) will call the wrapper
-%     wrapper (within which the original predicate will then be called).
+%     (within which the original predicate will then be called).
 %
 %   The arity-3 version is used by the module to pass along toplevel (and,
 %   in the future, original-source) variable names via definitions of the
