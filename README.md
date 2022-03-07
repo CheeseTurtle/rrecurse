@@ -23,11 +23,11 @@
   <details><summary>Rainbowifying <code>lists:clump/2</code>, calling <code>lists:clumped/3</code></summary>
     
     ![image](https://user-images.githubusercontent.com/4154751/156995634-23deac98-7251-4672-a3b2-116ddff589b5.png)
-    </details>
+  </details>
   <details><summary>Rainbowifying and calling <code>lists:nextto/3</code></summary>
     
     ![image](https://user-images.githubusercontent.com/4154751/157102354-6bd2d908-621e-4166-9d3f-00ec5144fe35.png)
-    </details>
+  </details>
 
 
 
@@ -53,18 +53,18 @@
        - `ted_shortest_length/3` (which is not recursive) calls `ted_shortest_length/4`, which is recursive. 
        - Within the recursive predicate `ted_shortest_length/4`, another recursive predicate, `ted_path/4`, is called (via calls to non-recursive `ted_path/3`, which calls `ted_path/4`).
      ![image](https://user-images.githubusercontent.com/4154751/156991736-4b02c71c-cddd-4fe4-9b3a-1bbbb7b0596a.png)
-      </details>
+    </details>
     <details><summary>Rainbowifying and calling <code>lists:flatten/2</code></summary>
       
        ![image](https://user-images.githubusercontent.com/4154751/157104421-6d914eda-f9e9-4c5d-b189-0bf70e05d0a1.png)
-      </details>
+    </details>
     
     Using `rrcall/1` or `rrcall/2` currently sometimes makes otherwise deterministic goals non-deterministic. There is likely no surefire way to avoid this unfortunate side-effect until I manage to eliminate the addition of superfluous choice-points.
     <details><summary>Rainbowifying and calling <code>lists:subtract/3</code></summary>
        
        The first few lines are not included in this screenshot. _Goal_ was `lists:subtract([a,1,b,2,c,3],[1,2,3],Sub)`.
        ![image](https://user-images.githubusercontent.com/4154751/157105824-45a89757-fdce-46e2-9742-8ae25697a6af.png)
-      </details>
+    </details>
     
 8. **Will more features be added in the future?**
     
