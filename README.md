@@ -10,7 +10,7 @@
   mytest([], []) :-
     !.
   mytest([H|T], [H|R]) :-
-    mytest(T, R).`
+    mytest(T, R).
   ```
   ![image](https://user-images.githubusercontent.com/4154751/156992183-9adc5ef8-8e21-40b0-8379-680eb560925a.png)
 
