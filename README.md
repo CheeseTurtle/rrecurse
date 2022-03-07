@@ -78,6 +78,8 @@
     
     The first few lines are not included in this screenshot. _Goal_ was `lists:subtract([a,1,b,2,c,3],[1,2,3],Sub)`.
       
+    <br/>
+      
     ![image](https://user-images.githubusercontent.com/4154751/157105824-45a89757-fdce-46e2-9742-8ae25697a6af.png)
     </p></details>
     
