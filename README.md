@@ -78,7 +78,7 @@
 | Argument Name | Accepted Value Type | Description | Example(s) |
 | :-----------: | :------------------ | :---------- | :--------- |
 | `Goal`        | callable            | Any syntactically valid term you would pass to `call/1` | `pred(A1,A2)`, `(X>Y -> pred(A1,A2) ; pred(A3,A4))` |
-| `Template`    | atom or compound    | Must match the head of the recursive predicate you'd like to rainbow-ify. See notes on template-matching behavior [below](https://github.com/CheeseTurtle/rrecurse/edit/pages/README.md#invocation-syntax). | `pred(A1,A2)`, `module:pred(A1,A2)`|
+| `Template`    | atom or compound    | Must match the head of the recursive predicate you'd like to rainbow-ify. See notes on template-matching behavior [below](https://cheeseturtle.github.io/rrecurse/#note-on-the-template-argument). | `pred(A1,A2)`, `module:pred(A1,A2)`|
 |               | predicate indicator | A predicate indicator describing a defined, visible, interpreted, and non-foreign predicate. The module may be omitted, in which case `rrecurse` will try to determine a module by matching the incomplete indicator with those of an eligible known predicate. In all cases, both name and arity must be specified. | `pred/2`, `module:pred/2` |
 
 ### Note on the `Template` argument
