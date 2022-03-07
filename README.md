@@ -1,8 +1,10 @@
-# Overview
+# `rrecurse` Module
+
+## Overview
 
 `rrecurse` ("rainbow recurse") is an SWI-Prolog module(-in-progress) that provides a couple of easy-to-use "rainbow recurse call" meta-predicates, `rrcall/1` and `rrcall/2`. These provide developers with a simple yet robust way to add trace output to any recursive predicate. They can be used to call any goal that contains a recursive predicate. It works very similar to `call(...)` with the key difference being that the optional second argument is not appended to the goal arguments, but rather allows the user to specify the "head template" that should be matched as the recursive predicate to rainbow-ify. These predicates have the potential to be useful in many situations involving recursion in SWIPL code.
 
-## Features and Screenshots
+### Features and Screenshots
 
 * Shows the progressive unification of terms at every level of recursion, color-coded and with clear indentation. Note epecially that for maximum clarity and insight, the head and tail are kept separate in the lines showing the values of the predicate arguments when leaving each level, and then shown combined when reporting that the predicate was successfully called from the previous level. That is, within each predicate, *the definition of that predicate's arguments as per the head of the clause being visited* is reflected in how its trace line is printed, whereas the lines showing the predicate call and the resulting bindings, as seen by the calling context, print the arguments *as seen from the calling context* (with no regard to the clause heads).
 * 
@@ -32,7 +34,7 @@
 [^1]:
     Well, it hopefully will in the future. There are currently still some issues with certain predicates that the dependencies `rrecurse` (and/or the dependencies' dependencies) use, such as `lists:append/3`. Fortunately, for most of these predicates it is not difficult at all to simply copy to a new file the source code for the predicate you'd like to rainbowify, rename the predicate, and then simply rainbowify the newly-named predicate.
 
-## FAQs
+### FAQs
 
 1. **Who should use this module?** 
 
@@ -69,7 +71,7 @@
     Yes! I have a number of ideas for additional customization capability, potentially by defining hooks. I'd also like to find a way to (optionally?) provide more visual feedback for the backtracking, most likely by making use of the `undo/1` built-in. But first, I really need to fix the issue I mentioned in the answer to Question 3.
 
 
-# Invocation Syntax
+## Invocation Syntax
 * **`rrcall/1`:** `rrcall( Goal )`
 * **`rrcall/2`:** `rrcall( Goal, Template )`
 
@@ -79,7 +81,7 @@
 | `Template`    | atom or compound    | Must match the head of the recursive predicate you'd like to rainbow-ify. See notes on template-matching behavior [below](https://github.com/CheeseTurtle/rrecurse/edit/pages/README.md#invocation-syntax). | `pred(A1,A2)`, `module:pred(A1,A2)`|
 |               | predicate indicator | A predicate indicator describing a defined, visible, interpreted, and non-foreign predicate. The module may be omitted, in which case `rrecurse` will try to determine a module by matching the incomplete indicator with those of an eligible known predicate. In all cases, both name and arity must be specified. | `pred/2`, `module:pred/2` |
 
-## Note on the `Template` argument
+### Note on the `Template` argument
 
 From the documentation:
 
@@ -92,7 +94,7 @@ From the documentation:
 > * Within Goal, a term of ``Name/Arity`` will only be _rrcall_-ed if its arguments can be unified with those of Template.
 > * Within the clauses of the predicate ``Name/Arity``, _all_ calls to ``Name/Arity`` (that is, _all_ recursive calls) will call the wrapper (within which the original predicate will then be called).
 
-## Detailed Documentation
+### Detailed Documentation
 
 I attempted to thoroughly document this module using structured comments. You can read these structured comments in the [source file](https://github.com/CheeseTurtle/rrecurse/blob/main/rrecurse.pro).
 
