@@ -7,8 +7,8 @@
 ### Features and Screenshots
 
 * Shows the progressive unification of terms at every level of recursion, color-coded and with clear indentation. Note epecially that for maximum clarity and insight, the head and tail are kept separate in the lines showing the values of the predicate arguments when leaving each level, and then shown combined when reporting that the predicate was successfully called from the previous level. That is, within each predicate, *the definition of that predicate's arguments as per the head of the clause being visited* is reflected in how its trace line is printed, whereas the lines showing the predicate call and the resulting bindings, as seen by the calling context, print the arguments *as seen from the calling context* (with no regard to the clause heads).
-* 
-  + <details><summary>An example user predicate and its rainbowification</summary>
+
+  <details><summary>An example user predicate and its rainbowification</summary>
   
     ```prolog
     mytest([], []) :-
@@ -20,11 +20,11 @@
   </details>
 
 * Works with any[^1] predicate written in SWI-Prolog, including built-ins! (Foreign predicates not supported.) Using this module is both simple and convenient.
-  + <details><summary>Rainbowifying <code>lists:clump/2</code>, calling <code>lists:clumped/3</code></summary>
+  <details><summary>Rainbowifying <code>lists:clump/2</code>, calling <code>lists:clumped/3</code></summary>
     
     ![image](https://user-images.githubusercontent.com/4154751/156995634-23deac98-7251-4672-a3b2-116ddff589b5.png)
     </details>
-  + <details><summary>Rainbowifying and calling <code>lists:nextto/3</code></summary>
+  <details><summary>Rainbowifying and calling <code>lists:nextto/3</code></summary>
     
     ![image](https://user-images.githubusercontent.com/4154751/157102354-6bd2d908-621e-4166-9d3f-00ec5144fe35.png)
     </details>
@@ -48,19 +48,19 @@
 
     When the rainbow-ified predicate is called in the goal from within another recursive predicate, the printing of certain subsets of recursion layers is in some cases "delayed". This is also more likely to occur when arguments are supplied to the recursive predicate that are nonvar and nonground --that is, they are bound to a term that contains (unbound) variables.
     
-    + <details><summary>Rainbowifying a recursive predicate that is called by another predicate</summary>
+    <details><summary>Rainbowifying a recursive predicate that is called by another predicate</summary>
       
        - `ted_shortest_length/3` (which is not recursive) calls `ted_shortest_length/4`, which is recursive. 
        - Within the recursive predicate `ted_shortest_length/4`, another recursive predicate, `ted_path/4`, is called (via calls to non-recursive `ted_path/3`, which calls `ted_path/4`).
      ![image](https://user-images.githubusercontent.com/4154751/156991736-4b02c71c-cddd-4fe4-9b3a-1bbbb7b0596a.png)
       </details>
-    + <details><summary>Rainbowifying and calling <code>lists:flatten/2</code></summary>
+    <details><summary>Rainbowifying and calling <code>lists:flatten/2</code></summary>
       
        ![image](https://user-images.githubusercontent.com/4154751/157104421-6d914eda-f9e9-4c5d-b189-0bf70e05d0a1.png)
       </details>
     
     Using `rrcall/1` or `rrcall/2` currently sometimes makes otherwise deterministic goals non-deterministic. There is likely no surefire way to avoid this unfortunate side-effect until I manage to eliminate the addition of superfluous choice-points.
-    + <details><summary>Rainbowifying and calling <code>lists:subtract/3</code></summary>
+    <details><summary>Rainbowifying and calling <code>lists:subtract/3</code></summary>
        
        The first few lines are not included in this screenshot. _Goal_ was `lists:subtract([a,1,b,2,c,3],[1,2,3],Sub)`.
        ![image](https://user-images.githubusercontent.com/4154751/157105824-45a89757-fdce-46e2-9742-8ae25697a6af.png)
