@@ -17,7 +17,7 @@
       mytest(T, R).
     ```
     
-  ![image](https://user-images.githubusercontent.com/4154751/156992183-9adc5ef8-8e21-40b0-8379-680eb560925a.png)
+  <img src="https://user-images.githubusercontent.com/4154751/156992183-9adc5ef8-8e21-40b0-8379-680eb560925a.png">
   </p> 
   </details>
 
@@ -26,13 +26,13 @@
   
   <p>  
     
-  ![image](https://user-images.githubusercontent.com/4154751/156995634-23deac98-7251-4672-a3b2-116ddff589b5.png)
+  <img src="https://user-images.githubusercontent.com/4154751/156995634-23deac98-7251-4672-a3b2-116ddff589b5.png">
   </p></details>
   <details><summary>Rainbowifying and calling <code>lists:nextto/3</code></summary>
   
   <p>
     
-  ![image](https://user-images.githubusercontent.com/4154751/157102354-6bd2d908-621e-4166-9d3f-00ec5144fe35.png)
+  <img src="https://user-images.githubusercontent.com/4154751/157102354-6bd2d908-621e-4166-9d3f-00ec5144fe35.png">
   </p>
   </details>
 
@@ -62,13 +62,13 @@
     - `ted_shortest_length/3` (which is not recursive) calls `ted_shortest_length/4`, which is recursive. 
     - Within the recursive predicate `ted_shortest_length/4`, another recursive predicate, `ted_path/4`, is called (via calls to non-recursive `ted_path/3`, which calls `ted_path/4`).
      
-    ![image](https://user-images.githubusercontent.com/4154751/156991736-4b02c71c-cddd-4fe4-9b3a-1bbbb7b0596a.png)
+    <img src="https://user-images.githubusercontent.com/4154751/156991736-4b02c71c-cddd-4fe4-9b3a-1bbbb7b0596a.png">
     </p></details>
     <details><summary>Rainbowifying and calling <code>lists:flatten/2</code></summary>
   
     <p>       
       
-    ![image](https://user-images.githubusercontent.com/4154751/157104421-6d914eda-f9e9-4c5d-b189-0bf70e05d0a1.png)
+    <img src="https://user-images.githubusercontent.com/4154751/157104421-6d914eda-f9e9-4c5d-b189-0bf70e05d0a1.png">
     </p></details>
     
     Using `rrcall/1` or `rrcall/2` currently sometimes makes otherwise deterministic goals non-deterministic. There is likely no surefire way to avoid this unfortunate side-effect until I manage to eliminate the addition of superfluous choice-points.
@@ -80,7 +80,7 @@
       
     <br/>
       
-    ![image](https://user-images.githubusercontent.com/4154751/157105824-45a89757-fdce-46e2-9742-8ae25697a6af.png)
+    <img src="https://user-images.githubusercontent.com/4154751/157105824-45a89757-fdce-46e2-9742-8ae25697a6af.png">
     </p></details>
     
 8. **Will more features be added in the future?**
@@ -93,11 +93,35 @@
 * **`rrcall/2`:** `rrcall( Goal, Template )`
 
 
-| Argument Name | Accepted Value Type | Description | Example(s) |
-| :-----------: | :------------------ | :---------- | :--------- |
-| `Goal`        | callable            | Any syntactically valid term you would pass to `call/1` | `pred(A1,A2)`, `(X>Y -> pred(A1,A2) ; pred(A3,A4))` |
-| `Template`    | atom or compound    | Must match the head of the recursive predicate you'd like to rainbow-ify. See notes on template-matching behavior [below](https://cheeseturtle.github.io/rrecurse/#note-on-the-template-argument). | `pred(A1,A2)`, `module:pred(A1,A2)`|
-|               | predicate indicator | A predicate indicator describing a defined, visible, interpreted, and non-foreign predicate. The module may be omitted, in which case `rrecurse` will try to determine a module by matching the incomplete indicator with those of an eligible known predicate. In all cases, both name and arity must be specified. | `pred/2`, `module:pred/2` |
+<table>
+<thead>
+<tr>
+<th align="center">Argument Name</th>
+<th align="left">Accepted Value Type</th>
+<th align="left">Description</th>
+<th align="left">Example(s)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center"><code>Goal</code></td>
+<td align="left">callable</td>
+<td align="left">Any syntactically valid term you would pass to <code>call/1</code></td>
+<td align="left"><code>pred(A1,A2)</code>, <code>(X&gt;Y -&gt; pred(A1,A2) ; pred(A3,A4))</code></td>
+</tr>
+<tr>
+<td align="center" rowspan="2"><code>Template</code></td>
+<td align="left">atom or compound</td>
+<td align="left">Must match the head of the recursive predicate you'd like to rainbow-ify. See notes on template-matching behavior <a href="https://cheeseturtle.github.io/rrecurse/#note-on-the-template-argument" rel="nofollow">below</a>.</td>
+<td align="left"><code>pred(A1,A2)</code>, <code>module:pred(A1,A2)</code></td>
+</tr>
+<tr>
+<td align="left">predicate indicator</td>
+<td align="left">A predicate indicator describing a defined, visible, interpreted, and non-foreign predicate. The module may be omitted, in which case <code>rrecurse</code> will try to determine a module by matching the incomplete indicator with those of an eligible known predicate. In all cases, both name and arity must be specified.</td>
+<td align="left"><code>pred/2</code>, <code>module:pred/2</code></td>
+</tr>
+</tbody>
+</table>
 
 ## Note on the `Template` argument
 
