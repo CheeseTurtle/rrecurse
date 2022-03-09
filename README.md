@@ -21,6 +21,7 @@
   </p> 
   </details>
 
+
 * Works with any[^1] predicate written in SWI-Prolog, including built-ins! (Foreign predicates not supported.) Using this module is both simple and convenient.
   <details><summary>Rainbowifying <code>lists:clump/2</code>, calling <code>lists:clumped/3</code></summary>
   
@@ -38,8 +39,10 @@
 
 
 
+
 [^1]:
     Well, it hopefully will in the future. There are currently still some issues with certain predicates that the dependencies `rrecurse` (and/or the dependencies' dependencies) use, such as `lists:append/3`. Fortunately, for most of these predicates it is not difficult at all to simply copy to a new file the source code for the predicate you'd like to rainbowify, rename the predicate, and then simply rainbowify the newly-named predicate.
+
 
 ## FAQs
 
