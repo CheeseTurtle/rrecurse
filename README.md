@@ -17,7 +17,8 @@
       mytest(T, R).
     ```
     
-  <img src="https://user-images.githubusercontent.com/4154751/156992183-9adc5ef8-8e21-40b0-8379-680eb560925a.png">
+  ![image](https://user-images.githubusercontent.com/4154751/156992183-9adc5ef8-8e21-40b0-8379-680eb560925a.png)
+    
   </p> 
   </details>
 
@@ -27,13 +28,13 @@
   
   <p>  
     
-  <img src="https://user-images.githubusercontent.com/4154751/156995634-23deac98-7251-4672-a3b2-116ddff589b5.png">
+  ![image](https://user-images.githubusercontent.com/4154751/156995634-23deac98-7251-4672-a3b2-116ddff589b5.png)
   </p></details>
   <details><summary>Rainbowifying and calling <code>lists:nextto/3</code></summary>
   
   <p>
     
-  <img src="https://user-images.githubusercontent.com/4154751/157102354-6bd2d908-621e-4166-9d3f-00ec5144fe35.png">
+  ![image](https://user-images.githubusercontent.com/4154751/157102354-6bd2d908-621e-4166-9d3f-00ec5144fe35.png)
   </p>
   </details>
 
@@ -65,13 +66,13 @@
     - `ted_shortest_length/3` (which is not recursive) calls `ted_shortest_length/4`, which is recursive. 
     - Within the recursive predicate `ted_shortest_length/4`, another recursive predicate, `ted_path/4`, is called (via calls to non-recursive `ted_path/3`, which calls `ted_path/4`).
      
-    <img src="https://user-images.githubusercontent.com/4154751/156991736-4b02c71c-cddd-4fe4-9b3a-1bbbb7b0596a.png">
+    ![image](https://user-images.githubusercontent.com/4154751/156991736-4b02c71c-cddd-4fe4-9b3a-1bbbb7b0596a.png)
     </p></details>
     <details><summary>Rainbowifying and calling <code>lists:flatten/2</code></summary>
   
     <p>       
       
-    <img src="https://user-images.githubusercontent.com/4154751/157104421-6d914eda-f9e9-4c5d-b189-0bf70e05d0a1.png">
+    ![image](https://user-images.githubusercontent.com/4154751/157104421-6d914eda-f9e9-4c5d-b189-0bf70e05d0a1.png)
     </p></details>
     
     Using `rrcall/1` or `rrcall/2` currently sometimes makes otherwise deterministic goals non-deterministic. There is likely no surefire way to avoid this unfortunate side-effect until I manage to eliminate the addition of superfluous choice-points.
@@ -80,10 +81,9 @@
     <p>     
     
     The first few lines are not included in this screenshot. _Goal_ was `lists:subtract([a,1,b,2,c,3],[1,2,3],Sub)`.
-      
     <br/>
       
-    <img src="https://user-images.githubusercontent.com/4154751/157105824-45a89757-fdce-46e2-9742-8ae25697a6af.png">
+    ![image](https://user-images.githubusercontent.com/4154751/157105824-45a89757-fdce-46e2-9742-8ae25697a6af.png)
     </p></details>
     
 8. **Will more features be added in the future?**
