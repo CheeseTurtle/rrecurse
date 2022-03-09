@@ -95,7 +95,7 @@
 * **`rrcall/1`:** `rrcall( Goal )`
 * **`rrcall/2`:** `rrcall( Goal, Template )`
 
-
+<p>
 <table>
 <thead>
 <tr>
@@ -125,6 +125,7 @@
 </tr>
 </tbody>
 </table>
+</p>
 
 ## Note on the `Template` argument
 
